@@ -40,22 +40,18 @@ EncodingConverter.ConvertAllToUtf8(storiesDirectory);
 Console.WriteLine("\n=== Step 3: Organise files into subdirectories ===");
 FileOrganizer.OrganizeFiles(storiesDirectory);
 
-// ── Step 4: Remove leading tab characters from paragraphs ─────────────────────
-//Console.WriteLine("\n=== Step 4: Remove leading tabs from paragraphs ===");
-//TabRemover.RemoveLeadingTabs(storiesDirectory);
+// ── Step 4: Classify images ───────────────────────────────────────────────────
+Console.WriteLine("\n=== Step 4: Classify images ===");
 
-// ── Step 5: Classify images ───────────────────────────────────────────────────
-Console.WriteLine("\n=== Step 5: Classify images ===");
-
-ImageClassifier.RealPhotoFolderName    = "RealPhotos";
-ImageClassifier.CartoonFolderName      = "Cartoons";
+ImageClassifier.RealPhotoFolderName    = "RealPhotosPre";
+ImageClassifier.CartoonFolderName      = "CartoonsPre";
 ImageClassifier.UnclassifiedFolderName = "Unclassified";
 
 // Engine selection:
 //   Both true  → consensus mode; disagreements go to Unclassified/
 //   One true   → that engine's verdict is used directly
 //   Both false → step is skipped entirely
-ImageClassifier.UseOnnxEngine      = true;
+ImageClassifier.UseOnnxEngine      = false;
 ImageClassifier.UseHeuristicEngine = true;
 
 // Uncomment to override the default model path (beside the executable):
@@ -63,11 +59,11 @@ ImageClassifier.UseHeuristicEngine = true;
 
 ImageClassifier.ClassifyImages(picturesDirectory);
 
-// ── Step 6: Write feature reports for false-positive tuning ───────────────────
+// ── Step 5: Write feature reports for false-positive tuning ───────────────────
 // After a run, move misclassified images into the two folders below, then
 // re-run this step. The resulting CSVs show each image's raw feature scores
 // and can be used to retune the heuristic weights in HeuristicEngine.cs.
-Console.WriteLine("\n=== Step 6: Write feature reports for false positives ===");
+Console.WriteLine("\n=== Step 5: Write feature reports for false positives ===");
 
 FeatureReporter.FalsePositiveCartoonFolder = "FalsePositiveCartoon";    // real photos in Cartoons
 FeatureReporter.FalsePositiveRealFolder    = "FalsePositiveRealPhoto";  // anime in RealPhotos

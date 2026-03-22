@@ -45,7 +45,7 @@ public static class ImageClassifier
     public static float OnnxCartoonThreshold { get; set; } = 0.5f;
 
     /// <summary>Heuristic composite score >= this → heuristic says cartoon.</summary>
-    public static double HeuristicCartoonThreshold { get; set; } = 0.50;
+    public static double HeuristicCartoonThreshold { get; set; } = 0.64;
 
     /// <summary>Enable the ONNX neural-network engine.</summary>
     public static bool UseOnnxEngine { get; set; } = true;
