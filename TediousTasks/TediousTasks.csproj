@@ -12,8 +12,10 @@
 	<ItemGroup>
 		<PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.24.4" />
 		<PackageReference Include="System.Drawing.Common" Version="10.0.5" />
-		<!-- Lossless WebP encode/decode. Pure .NET, no native deps. -->
-		<PackageReference Include="SixLabors.ImageSharp" Version="3.1.7" />
+		<!-- JPEG XL encode/decode via ImageMagick + libjxl.
+		     Q16 = 16-bit colour depth (correct for lossless archival).
+		     AnyCPU = works on Windows x64/arm64, Linux, macOS. -->
+		<PackageReference Include="Magick.NET-Q16-AnyCPU" Version="14.1.0" />
 	</ItemGroup>
 
 	<ItemGroup>

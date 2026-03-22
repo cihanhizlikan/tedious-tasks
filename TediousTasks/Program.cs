@@ -40,26 +40,28 @@ EncodingConverter.ConvertAllToUtf8(storiesDirectory);
 Console.WriteLine("\n=== Step 3: Organise files into subdirectories ===");
 FileOrganizer.OrganizeFiles(storiesDirectory);
 
-// ── Step 4: Convert images to lossless WebP ───────────────────────────────────
-// Converts jpeg/png/gif/bmp/tiff → lossless WebP in-place.
-// Lossless = zero data loss; every pixel is preserved exactly.
-// Run this before classification so the classifier only handles .webp files.
-// Existing .webp files are left untouched and accepted as input already.
-Console.WriteLine("\n=== Step 4: Convert images to lossless WebP ===");
-ImageClassifier.ConvertImagesToWebP(picturesDirectory);
+// ── Step 4: Convert images to JPEG XL ─────────────────────────────────────────
+// Conversion is format-aware:
+//   JPEG        → lossy JXL quality=90  (avoids lossless bloat on already-lossy source)
+//   PNG/GIF/BMP/TIFF/WebP → lossless JXL (pixel-perfect, every original preserved exactly)
+//
+// Existing .jxl files are left untouched.
+// Run this before classification so the classifier only handles .jxl files.
+Console.WriteLine("\n=== Step 4: Convert images to JPEG XL ===");
+ImageClassifier.ConvertImagesToJxl(picturesDirectory);
 
 // ── Step 5: Classify images ───────────────────────────────────────────────────
 Console.WriteLine("\n=== Step 5: Classify images ===");
 
-ImageClassifier.RealPhotoFolderName    = "RealPhotosPre";
-ImageClassifier.CartoonFolderName      = "CartoonsPre";
+ImageClassifier.RealPhotoFolderName    = "RealPhotos";
+ImageClassifier.CartoonFolderName      = "Cartoons";
 ImageClassifier.UnclassifiedFolderName = "Unclassified";
 
 // Engine selection:
 //   Both true  → consensus mode; disagreements go to Unclassified/
 //   One true   → that engine's verdict is used directly
 //   Both false → step is skipped entirely
-ImageClassifier.UseOnnxEngine      = false;
+ImageClassifier.UseOnnxEngine      = true;
 ImageClassifier.UseHeuristicEngine = true;
 
 // Uncomment to override the default model path (beside the executable):
@@ -76,7 +78,7 @@ Console.WriteLine("\n=== Step 6: Write feature reports for false positives ===")
 FeatureReporter.FalsePositiveCartoonFolder = "FalsePositiveCartoon";    // real photos in Cartoons
 FeatureReporter.FalsePositiveRealFolder    = "FalsePositiveRealPhoto";  // anime in RealPhotos
 FeatureReporter.OutputCartoonCsv           = "features_false_cartoon.csv";
-FeatureReporter.OutputRealCsv              = "features_false_real.csv";
+FeatureReporter.OutputRealCsv             = "features_false_real.csv";
 
 FeatureReporter.WriteFeatureReports(picturesDirectory);
 
