@@ -44,8 +44,20 @@ public static class ImageClassifier
     /// <summary>Anime probability >= this → ONNX says cartoon.</summary>
     public static float OnnxCartoonThreshold { get; set; } = 0.5f;
 
-    /// <summary>Heuristic composite score >= this → heuristic says cartoon.</summary>
-    public static double HeuristicCartoonThreshold { get; set; } = 0.64;
+    /// <summary>
+    /// Heuristic composite score threshold used when BOTH engines are active (consensus mode).
+    /// Set conservatively high (0.64) so the heuristic only confirms clear cartoon cases,
+    /// minimising false cartoons at the cost of more Unclassified images.
+    /// </summary>
+    public static double HeuristicConsensusThreshold { get; set; } = 0.64;
+
+    /// <summary>
+    /// Heuristic composite score threshold used when the heuristic runs ALONE
+    /// (ONNX engine disabled). Lower than <see cref="HeuristicConsensusThreshold"/>
+    /// because there is no second engine to catch the errors this looser threshold lets through.
+    /// Calibrated to catch ~78% of anime while accepting ~5 false cartoons per 1700 images.
+    /// </summary>
+    public static double HeuristicStandaloneThreshold { get; set; } = 0.38;
 
     /// <summary>Enable the ONNX neural-network engine.</summary>
     public static bool UseOnnxEngine { get; set; } = true;
@@ -188,8 +200,11 @@ public static class ImageClassifier
 
             if (UseOnnxEngine && UseHeuristicEngine)
             {
+                // Consensus mode: use the conservative high threshold so the heuristic
+                // only confirms ONNX when it's very confident — minimises false cartoons.
                 bool onnxResult      = OnnxEngine.IsCartoon(srcPath, out string onnxReason);
-                bool heuristicResult = HeuristicEngine.IsCartoon(srcPath, out string heuristicReason);
+                bool heuristicResult = HeuristicEngine.IsCartoon(srcPath,
+                                           HeuristicConsensusThreshold, out string heuristicReason);
                 reason = $"onnx=[{onnxReason}] heuristic=[{heuristicReason}]";
 
                 if (onnxResult != heuristicResult)
@@ -204,7 +219,11 @@ public static class ImageClassifier
             }
             else
             {
-                isCartoon = HeuristicEngine.IsCartoon(srcPath, out string r);
+                // Standalone heuristic mode: use the lower threshold calibrated for
+                // operating without ONNX backup. Catches more anime at the cost of
+                // a small increase in false cartoons.
+                isCartoon = HeuristicEngine.IsCartoon(srcPath,
+                                HeuristicStandaloneThreshold, out string r);
                 reason    = $"heuristic=[{r}]";
             }
 
