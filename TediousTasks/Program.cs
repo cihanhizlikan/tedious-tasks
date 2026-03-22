@@ -53,8 +53,8 @@ ImageClassifier.ConvertImagesToJxl(picturesDirectory);
 // ── Step 5: Classify images ───────────────────────────────────────────────────
 Console.WriteLine("\n=== Step 5: Classify images ===");
 
-ImageClassifier.RealPhotoFolderName    = "RealPhotos";
-ImageClassifier.CartoonFolderName      = "Cartoons";
+ImageClassifier.RealPhotoFolderName    = "RealPhotosPre";
+ImageClassifier.CartoonFolderName      = "CartoonsPre";
 ImageClassifier.UnclassifiedFolderName = "Unclassified";
 
 // Engine selection:
@@ -62,7 +62,7 @@ ImageClassifier.UnclassifiedFolderName = "Unclassified";
 //   One true   → that engine's verdict is used directly
 //   Both false → step is skipped entirely
 ImageClassifier.UseOnnxEngine      = true;
-ImageClassifier.UseHeuristicEngine = true;
+ImageClassifier.UseHeuristicEngine = false;
 
 // Uncomment to override the default model path (beside the executable):
 // ImageClassifier.ModelPath = @"C:\custom\path\model.onnx";
