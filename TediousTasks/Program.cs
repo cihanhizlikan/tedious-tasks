@@ -1,9 +1,7 @@
 using TediousTasks;
 
 // ── Configuration ──────────────────────────────────────────────────────────────
-// Set this to whatever root directory you want to process.
-// Defaults to the directory that contains the executable when left as an empty string.
-string workingDirectory = @"E:\";
+string workingDirectory = @"E:\Pictures";
 
 if (string.IsNullOrWhiteSpace(workingDirectory))
     workingDirectory = AppContext.BaseDirectory;
@@ -32,14 +30,31 @@ Console.WriteLine($"Working directory: {workingDirectory}\n");
 //Console.WriteLine("\n=== Step 4: Remove leading tabs from paragraphs ===");
 //TabRemover.RemoveLeadingTabs(workingDirectory);
 
-// ── Step 5: Classify images into Real Photos / Cartoon-Anime folders ──────────
+// ── Step 5: Classify images – dual engine (ONNX + heuristic, consensus only) ──
 Console.WriteLine("\n=== Step 5: Classify images ===");
 
-// ↓↓ Configure destination folder names here — they must not be identical ↓↓
-ImageClassifier.RealPhotoFolderName = "RealPhotos";
-ImageClassifier.CartoonFolderName   = "Cartoons";
+// Destination folder names — all three must be different
+ImageClassifier.RealPhotoFolderName    = "RealPhotos";
+ImageClassifier.CartoonFolderName      = "Cartoons";
+ImageClassifier.UnclassifiedFolderName = "Unclassified";  // engines disagreed
+
+// Path to model.onnx (default: beside the executable, copied from project root via .csproj)
+// ImageClassifier.ModelPath = @"C:\custom\path\model.onnx";
 
 ImageClassifier.ClassifyImages(workingDirectory);
+
+// ── Step 6: Write feature reports for manual false-positive correction ─────────
+// Place misclassified images into the two folders below, then run this step.
+// Two CSV files will be written with the raw feature scores for every image,
+// which can be fed back to tune the heuristic weights.
+Console.WriteLine("\n=== Step 6: Write feature reports for false positives ===");
+
+FeatureReporter.FalsePositiveCartoonFolder = "FalsePositiveCartoon";   // real photos wrongly sent to Cartoons
+FeatureReporter.FalsePositiveRealFolder    = "FalsePositiveRealPhoto"; // anime wrongly sent to RealPhotos
+FeatureReporter.OutputCartoonCsv           = "features_false_cartoon.csv";
+FeatureReporter.OutputRealCsv              = "features_false_real.csv";
+
+FeatureReporter.WriteFeatureReports(workingDirectory);
 
 Console.WriteLine("\nAll done.");
 return 0;
