@@ -3,48 +3,38 @@ namespace TediousTasks;
 /// <summary>
 /// Immutable bag of heuristic feature scores for a single image. All values in [0, 1].
 ///
-/// Removed after statistical analysis across 3 rounds of false-positive data:
-///   Saturation  — direction flipped in round 3 (unreliable, dataset-dependent)
-///   ColorTemp   — near-zero Cohen's d in 2/3 rounds (effectively dead weight)
+/// Features retained after four rounds of false-positive analysis:
+///   real↑  (higher = more real photo): ChannelNoise, Palette, FlatRegion, FlatNoise
+///   anime↑ (higher = more anime):      EdgeBimodal, InkOutline
 ///
-/// Added:
-///   JpegBlockArtifact  — detects 8-pixel periodic noise from JPEG/GIF compression
-///   GradientBimodality — measures bimodal vs unimodal colour transition distribution
-///   LocalPalette       — patch-level colour count (more robust than global palette)
-///
-/// Direction key:
-///   anime↑  : higher value = more likely anime/cartoon
-///   real↑   : higher value = more likely real photo (inverted in ScoreFeatures)
+/// Features permanently removed:
+///   Saturation        — direction flipped R3, dataset-dependent
+///   ColorTemp         — near-zero Cohen's d in 2/3 rounds
+///   SkinDiscrete      — direction flipped R1→R2, ~0 separation in R4
+///   JpegBlockArtifact — destroyed by LoadAndResize (bicubic erases 8px block boundaries)
+///   GradientBimodality— calibration failure, scored 1.0 for 100% of all images
+///   LocalPalette      — normalisation off by ~20x, scored ~0 for 100% of all images
 /// </summary>
 internal sealed class ImageFeatures
 {
-    // ── Retained features ──────────────────────────────────────────────────────
-    public required double ChannelNoise      { get; init; }  // real↑  dominant signal
-    public required double FlatNoise         { get; init; }  // real↑  strong in rounds 2+3
-    public required double InkOutline        { get; init; }  // anime↑ consistent all rounds
-    public required double EdgeBimodal       { get; init; }  // anime↑ consistent all rounds
-    public required double FlatRegion        { get; init; }  // anime↑ (rounds 2+3; low weight)
-    public required double SkinDiscrete      { get; init; }  // anime↑ (fragile; low weight)
-    public required double Palette           { get; init; }  // real↑  replaced by LocalPalette below but kept for CSV continuity
-
-    // ── New features ───────────────────────────────────────────────────────────
-    public required double JpegBlockArtifact { get; init; }  // anime↑ JPEG/GIF block periodicity
-    public required double GradientBimodality{ get; init; }  // anime↑ hard cel-shading transitions
-    public required double LocalPalette      { get; init; }  // real↑  patch-level colour diversity
+    public required double ChannelNoise { get; init; }  // real↑  dominant, consistent
+    public required double Palette      { get; init; }  // real↑  strong R1,R3,R4
+    public required double FlatRegion   { get; init; }  // real↑  fragile direction
+    public required double FlatNoise    { get; init; }  // real↑  consistent R2,R3,R4
+    public required double EdgeBimodal  { get; init; }  // anime↑ consistent all rounds
+    public required double InkOutline   { get; init; }  // anime↑ consistent, weak magnitude
 
     // ── CSV serialisation ──────────────────────────────────────────────────────
 
     public static string CsvHeader =>
         "file," +
-        "channel_noise(real↑),flat_noise(real↑),ink_outline(anime↑),edge_bimodal(anime↑)," +
-        "flat_region(anime↑),skin_discrete(anime↑),palette(real↑)," +
-        "jpeg_block(anime↑),gradient_bimodal(anime↑),local_palette(real↑)," +
+        "channel_noise(real↑),palette(real↑),flat_region(real↑),flat_noise(real↑)," +
+        "edge_bimodal(anime↑),ink_outline(anime↑)," +
         "composite";
 
     public string ToCsvRow(string fileName, double composite) =>
         $"{fileName}," +
-        $"{ChannelNoise:F4},{FlatNoise:F4},{InkOutline:F4},{EdgeBimodal:F4}," +
-        $"{FlatRegion:F4},{SkinDiscrete:F4},{Palette:F4}," +
-        $"{JpegBlockArtifact:F4},{GradientBimodality:F4},{LocalPalette:F4}," +
+        $"{ChannelNoise:F4},{Palette:F4},{FlatRegion:F4},{FlatNoise:F4}," +
+        $"{EdgeBimodal:F4},{InkOutline:F4}," +
         $"{composite:F4}";
 }

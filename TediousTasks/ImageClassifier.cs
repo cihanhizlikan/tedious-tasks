@@ -57,7 +57,7 @@ public static class ImageClassifier
     /// because there is no second engine to catch the errors this looser threshold lets through.
     /// Calibrated to catch ~78% of anime while accepting ~5 false cartoons per 1700 images.
     /// </summary>
-    public static double HeuristicStandaloneThreshold { get; set; } = 0.38;
+    public static double HeuristicStandaloneThreshold { get; set; } = 0.66;
 
     /// <summary>Enable the ONNX neural-network engine.</summary>
     public static bool UseOnnxEngine { get; set; } = true;
