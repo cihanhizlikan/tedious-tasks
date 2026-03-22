@@ -51,7 +51,7 @@ ImageClassifier.UnclassifiedFolderName = "Unclassified";
 //   Both true  → consensus mode; disagreements go to Unclassified/
 //   One true   → that engine's verdict is used directly
 //   Both false → step is skipped entirely
-ImageClassifier.UseOnnxEngine      = false;
+ImageClassifier.UseOnnxEngine      = true;
 ImageClassifier.UseHeuristicEngine = true;
 
 // Uncomment to override the default model path (beside the executable):
