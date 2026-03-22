@@ -60,6 +60,8 @@ namespace TediousTasks
             new(StringComparer.OrdinalIgnoreCase)
             {
                 ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tiff", ".tif"
+                // .jfif files are renamed to .jpg before processing (see RenameJfifFiles)
+                // .webp requires SkiaSharp – add here once that package is referenced
             };
 
         // ── ONNX / ImageNet constants ─────────────────────────────────────────
@@ -117,6 +119,13 @@ namespace TediousTasks
             Directory.CreateDirectory(cartoonDir);
             Directory.CreateDirectory(unclassifiedDir);
 
+            // ── Step 0a: Rename .jfif → .jpg ─────────────────────────────────
+            // JFIF is structurally identical to JPEG. GDI+ decodes the bytes fine
+            // but only recognises .jpg/.jpeg extensions, so rename in-place first.
+            int renamedJfif = RenameJfifToJpg(workingDirectory);
+            if (renamedJfif > 0)
+                Console.WriteLine($"  Renamed {renamedJfif} .jfif file(s) to .jpg.");
+
             var imageFiles = Directory
                 .EnumerateFiles(workingDirectory, "*.*", SearchOption.TopDirectoryOnly)
                 .Where(f => SupportedExtensions.Contains(Path.GetExtension(f)))
@@ -130,6 +139,7 @@ namespace TediousTasks
 
             Console.WriteLine($"  Found {imageFiles.Count} image file(s).");
 
+            // ── Step 0b: Deduplicate ──────────────────────────────────────────
             int removedDupes = RemoveBatchDuplicates(imageFiles);
             if (removedDupes > 0)
                 Console.WriteLine($"  Removed {removedDupes} duplicate(s). {imageFiles.Count} remaining.");
@@ -309,21 +319,30 @@ namespace TediousTasks
         }
 
         internal static double ScoreFeatures(ImageFeatures f) =>
-              0.13 * f.Palette
-            + 0.09 * f.Saturation
-            + 0.09 * f.FlatRegion
-            + 0.09 * f.EdgeBimodal
-            + 0.18 * f.InkOutline
-            + 0.13 * f.SkinDiscrete
-            + 0.12 * (1.0 - f.FlatNoise)
-            + 0.05 * f.ColorTemp
-            + 0.12 * (1.0 - f.ChannelNoise);
+            // Weights and signs derived from statistical analysis of 162 false-cartoon
+            // and 85 false-real images.
+            //
+            // Key findings:
+            //   - chnoise is the dominant separator (FC=0.13, FR=0.79 mean)
+            //   - palette, flat, colortemp, skin all score HIGHER for real photos
+            //     than for anime — they must be INVERTED from original assumption
+            //   - flat_noise has zero separating power (both groups ~0.36) → weight=0.01
+            //   - sat, edge, outline correctly score higher for anime
+              0.30 * (1.0 - f.ChannelNoise)   // chnoise HIGH = real → invert
+            + 0.15 * f.Saturation              // sat HIGH = anime ✓
+            + 0.20 * f.InkOutline              // outline HIGH = anime ✓
+            + 0.05 * f.EdgeBimodal             // edge HIGH = anime ✓
+            + 0.13 * (1.0 - f.Palette)         // palette HIGH = real → invert
+            + 0.10 * (1.0 - f.FlatRegion)      // flat HIGH = real → invert
+            + 0.04 * (1.0 - f.ColorTemp)       // colortemp HIGH = real → invert
+            + 0.02 * (1.0 - f.SkinDiscrete)    // skin HIGH = real → invert
+            + 0.01 * (1.0 - f.FlatNoise);      // flat_noise: no separation, minimal weight
 
         internal static string FormatReason(double composite, ImageFeatures f) =>
             $"score={composite:F3} " +
-            $"[palette={f.Palette:F2} sat={f.Saturation:F2} flat={f.FlatRegion:F2} " +
-            $"edge={f.EdgeBimodal:F2} outline={f.InkOutline:F2} skin={f.SkinDiscrete:F2} " +
-            $"noise={f.FlatNoise:F2}↓ colorTemp={f.ColorTemp:F2} chNoise={f.ChannelNoise:F2}↓]";
+            $"[chnoise={f.ChannelNoise:F2}↓ sat={f.Saturation:F2} outline={f.InkOutline:F2} " +
+            $"edge={f.EdgeBimodal:F2} palette={f.Palette:F2}↓ flat={f.FlatRegion:F2}↓ " +
+            $"colortemp={f.ColorTemp:F2}↓ skin={f.SkinDiscrete:F2}↓ noise={f.FlatNoise:F2}↓]";
 
         // ── Feature 1 – Colour palette size ──────────────────────────────────
         private static double PaletteScore(PixelBuffer px)
@@ -556,6 +575,33 @@ namespace TediousTasks
         }
 
         // ─────────────────────────────────────────────────────────────────────
+        // JFIF → JPG rename
+        // ─────────────────────────────────────────────────────────────────────
+        private static int RenameJfifToJpg(string workingDirectory)
+        {
+            int count = 0;
+            foreach (string path in Directory.EnumerateFiles(
+                workingDirectory, "*.jfif", SearchOption.TopDirectoryOnly))
+            {
+                string dest = BuildUniquePath(
+                    workingDirectory,
+                    Path.GetFileNameWithoutExtension(path),
+                    ".jpg");
+                try
+                {
+                    File.Move(path, dest);
+                    count++;
+                }
+                catch (Exception ex)
+                {
+                    Console.Error.WriteLine(
+                        $"  [ERROR] Could not rename \"{Path.GetFileName(path)}\": {ex.Message}");
+                }
+            }
+            return count;
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
         // Batch deduplication
         // ─────────────────────────────────────────────────────────────────────
         private static int RemoveBatchDuplicates(List<string> files)
@@ -634,8 +680,8 @@ namespace TediousTasks
             $"{InkOutline:F4},{SkinDiscrete:F4},{FlatNoise:F4},{ColorTemp:F4},{ChannelNoise:F4}";
 
         public static string CsvHeader =>
-            "file,palette,saturation,flat_region,edge_bimodal," +
-            "ink_outline,skin_discrete,flat_noise(real↑),color_temp,channel_noise(real↑)";
+            "file,palette(real↑),saturation(anime↑),flat_region(real↑),edge_bimodal(anime↑)," +
+            "ink_outline(anime↑),skin_discrete(real↑),flat_noise(useless),color_temp(real↑),channel_noise(real↑)";
     }
 
     // ─────────────────────────────────────────────────────────────────────────
