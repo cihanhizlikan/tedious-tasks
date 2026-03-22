@@ -105,8 +105,54 @@ public static class ImageClassifier
         MaxDegreeOfParallelism <= 0 ? Environment.ProcessorCount : MaxDegreeOfParallelism;
 
     // ─────────────────────────────────────────────────────────────────────────
-    // Public entry point
+    // Public entry point – ConvertImagesToWebP
+    // Converts jpeg/png/gif/bmp/tiff files to lossless WebP in-place.
+    // Call this BEFORE ClassifyImages so the classifier sees only .webp files.
     // ─────────────────────────────────────────────────────────────────────────
+    public static void ConvertImagesToWebP(string workingDirectory)
+    {
+        var candidates = Directory
+            .EnumerateFiles(workingDirectory, "*.*", SearchOption.TopDirectoryOnly)
+            .Where(f => ImageUtils.ConvertToWebPExtensions.Contains(Path.GetExtension(f)))
+            .ToList();
+
+        if (candidates.Count == 0)
+        {
+            Console.WriteLine("  No convertible image files found.");
+            return;
+        }
+
+        Console.WriteLine($"  Converting {candidates.Count} file(s) to lossless WebP...");
+
+        int ok = 0, failed = 0, processed = 0, total = candidates.Count;
+        var consoleLock = new object();
+
+        Parallel.ForEach(candidates,
+            new ParallelOptions { MaxDegreeOfParallelism = ActualParallelism() },
+            srcPath =>
+            {
+                string? result = ImageUtils.ConvertToWebP(srcPath);
+                int n = Interlocked.Increment(ref processed);
+                lock (consoleLock)
+                {
+                    if (result is not null)
+                    {
+                        Console.WriteLine(
+                            $"  [WEBP] ({n}/{total}) {Path.GetFileName(srcPath)} → {Path.GetFileName(result)}");
+                        ok++;
+                    }
+                    else
+                    {
+                        failed++;
+                    }
+                }
+            });
+
+        Console.WriteLine($"  Converted: {ok} succeeded, {failed} failed.");
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Public entry point – ClassifyImages
     public static void ClassifyImages(string workingDirectory)
     {
         if (!UseOnnxEngine && !UseHeuristicEngine)
@@ -130,6 +176,7 @@ public static class ImageClassifier
         Console.WriteLine($"  Active engines: {EngineLabel()}");
 
         // ── Step 0a: Rename .jfif → .jpg ─────────────────────────────────────
+        // (WebP conversion is a separate step run before ClassifyImages)
         int renamedJfif = RenameJfifToJpg(workingDirectory);
         if (renamedJfif > 0)
             Console.WriteLine($"  Renamed {renamedJfif} .jfif file(s) to .jpg.");

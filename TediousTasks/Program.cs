@@ -40,11 +40,19 @@ EncodingConverter.ConvertAllToUtf8(storiesDirectory);
 Console.WriteLine("\n=== Step 3: Organise files into subdirectories ===");
 FileOrganizer.OrganizeFiles(storiesDirectory);
 
-// ── Step 4: Classify images ───────────────────────────────────────────────────
-Console.WriteLine("\n=== Step 4: Classify images ===");
+// ── Step 4: Convert images to lossless WebP ───────────────────────────────────
+// Converts jpeg/png/gif/bmp/tiff → lossless WebP in-place.
+// Lossless = zero data loss; every pixel is preserved exactly.
+// Run this before classification so the classifier only handles .webp files.
+// Existing .webp files are left untouched and accepted as input already.
+Console.WriteLine("\n=== Step 4: Convert images to lossless WebP ===");
+ImageClassifier.ConvertImagesToWebP(picturesDirectory);
 
-ImageClassifier.RealPhotoFolderName    = "RealPhotosPre";
-ImageClassifier.CartoonFolderName      = "CartoonsPre";
+// ── Step 5: Classify images ───────────────────────────────────────────────────
+Console.WriteLine("\n=== Step 5: Classify images ===");
+
+ImageClassifier.RealPhotoFolderName    = "RealPhotos";
+ImageClassifier.CartoonFolderName      = "Cartoons";
 ImageClassifier.UnclassifiedFolderName = "Unclassified";
 
 // Engine selection:
@@ -59,11 +67,11 @@ ImageClassifier.UseHeuristicEngine = true;
 
 ImageClassifier.ClassifyImages(picturesDirectory);
 
-// ── Step 5: Write feature reports for false-positive tuning ───────────────────
+// ── Step 6: Write feature reports for false-positive tuning ───────────────────
 // After a run, move misclassified images into the two folders below, then
 // re-run this step. The resulting CSVs show each image's raw feature scores
 // and can be used to retune the heuristic weights in HeuristicEngine.cs.
-Console.WriteLine("\n=== Step 5: Write feature reports for false positives ===");
+Console.WriteLine("\n=== Step 6: Write feature reports for false positives ===");
 
 FeatureReporter.FalsePositiveCartoonFolder = "FalsePositiveCartoon";    // real photos in Cartoons
 FeatureReporter.FalsePositiveRealFolder    = "FalsePositiveRealPhoto";  // anime in RealPhotos
